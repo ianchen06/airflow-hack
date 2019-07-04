@@ -1,0 +1,67 @@
+version: '2.1'
+services:
+    redis:
+        image: 'redis:3.2.7'
+
+    db:
+        image: mysql:5.7
+        volumes:
+          - ./my.cnf:/etc/my.cnf
+        environment:
+            - MYSQL_USER=airflow
+            - MYSQL_PASSWORD=airflow
+            - MYSQL_DATABASE=airflow
+            - MYSQL_ROOT_PASSWORD=airflow
+
+    webserver:
+        build: .
+        restart: always
+        depends_on:
+            - db
+            - redis
+        environment:
+            - AIRFLOW_HOME=/app
+        volumes:
+            - .:/app
+        ports:
+            - "8080:8080"
+        command: ["sh", "-c", "airflow initdb; airflow webserver"]
+        # command: ["sh", "-c", "while true; do sleep 99999; done"]
+
+    flower:
+        build: .
+        restart: always
+        depends_on:
+            - db
+            - redis
+        environment:
+            - AIRFLOW_HOME=/app
+        volumes:
+            - .:/app
+        ports:
+            - "5555:5555"
+        command: airflow flower
+
+    scheduler:
+        build: .
+        restart: always
+        depends_on:
+            - db
+            - webserver
+        volumes:
+            - .:/app
+        environment:
+            - AIRFLOW_HOME=/app
+        command: airflow scheduler
+
+    worker:
+        build: .
+        restart: always
+        depends_on:
+            - db
+            - scheduler
+        volumes:
+            - .:/app
+        environment:
+            - AIRFLOW_HOME=/app
+        command: airflow worker
